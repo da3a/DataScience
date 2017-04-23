@@ -4,6 +4,7 @@ from sklearn import tree
 clf = tree.DecisionTreeClassifier()
 clf1 = tree.ExtraTreeClassifier()
 
+
 # [height, weight, shoe_size]
 X = [[181, 80, 44], [177, 70, 43], [160, 60, 38], [154, 54, 37], [166, 65, 40],
      [190, 90, 47], [175, 64, 39],

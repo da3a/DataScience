@@ -4,7 +4,7 @@
     "version": "0.1.0",
     "command": "C:/Program Files/Anaconda3/Python.exe",
     "isShellCommand": true,
-    "args": ["Hello World"],
+    "args": ["${file}"],
     "showOutput": "always",
     "isBuildCommand": "true"
 }
