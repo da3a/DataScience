@@ -4,6 +4,8 @@ from lightfm import LightFM
 
 # https://github.com/llSourcell/recommender_system_challenge/blob/master/demo.py
 
+# http://lyst.github.io/lightfm/docs/home.html
+
 data = fetch_movielens(min_rating=4.0)
 
 print(repr(data['train']))
