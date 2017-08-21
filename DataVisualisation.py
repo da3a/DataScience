@@ -6,6 +6,8 @@ from sklearn.cross_validation import train_test_split
 from sklearn.preprocessing import StandardScaler
 import matplotlib.pyplot as plt
 
+# https://github.com/llSourcell/visualize_dataset_demo/blob/master/data_visualization.py
+
 dataframe_all = pd.read_csv('https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv',low_memory=False)
 #dataframe_all = pd.read_csv('c:/scripts/python/datascience/pml-training.csv', low_memory=False)
 num_rows = dataframe_all.shape[0]
