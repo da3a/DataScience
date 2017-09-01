@@ -14,7 +14,7 @@ reviewsFileName = 'reviews.pickle'
 searchTerm = 'pg={}&q=VW%20Touran'
 maxPages=100
 reviews=[]
-nClusters = 3
+nClusters = 5
 
 def scrapeReviews(pageNo):
     url = 'https://www.honestjohn.co.uk/Forum/Search?days=300&' + searchTerm.format(pageNo)

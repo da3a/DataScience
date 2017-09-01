@@ -34,13 +34,15 @@ dfNew = json_normalize(doc)
 
 dfNew = dfNew[['timestamp','price.gbp', 'change']]
 dfNew.set_index('timestamp',inplace=True)
-print(dfNew)
+print('dfNew',dfNew)
+print(dfNew.loc[1504263392.361])
+#print(dfNew.iloc([0][0]))
 try:
     df = pd.read_pickle('ltc.pickle')
     #print('read pickle:', df)
     #print('timestamp is: ',dfNew['timestamp'])
-    if (1  in df[0]) :
-        df = df.append(dfNew)
+    #if (1  in df[0]) :
+    df = df.append(dfNew)
 except Exception as e:
     print('woops, an error occurred',e)
     df = dfNew
