@@ -1,12 +1,21 @@
 
 #https://pandas.pydata.org/pandas-docs/stable/10min.html
-
-
 import sys
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 
-dates = pd.date_range('20130101', periods=6)
+
+l = [1,2,3,4,5,6,7,8,9]
+
+ages = pd.DataFrame(l)
+#print(ages)
+print(ages[0][6])
+print(len(ages))
+print(ages.iloc[len(ages)-1,0])
+sys.exit(0)
+
+
 
 #print(dates)
 

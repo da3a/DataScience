@@ -5,7 +5,11 @@ import json
 import pandas as pd
 from pandas.io.json import json_normalize
 import numpy
-
+import sys
+import matplotlib.pyplot as plt
+from matplotlib import style
+import matplotlib.ticker as ticker
+from matplotlib import dates
 baseUrl = 'https://coinmarketcap-nexuist.rhcloud.com/api/{}'
 
 
@@ -34,37 +38,43 @@ dfNew = json_normalize(doc)
 
 dfNew = dfNew[['timestamp','price.gbp', 'change']]
 dfNew.set_index('timestamp',inplace=True)
-print('dfNew',dfNew)
-print(dfNew.loc[1504263392.361])
-#print(dfNew.iloc([0][0]))
+print(dfNew.iloc[0,0])
+
+#print(dfNew.iloc[0,1])
+newTimeStamp = dfNew.index[0]
+
 try:
-    df = pd.read_pickle('ltc.pickle')
-    #print('read pickle:', df)
-    #print('timestamp is: ',dfNew['timestamp'])
-    #if (1  in df[0]) :
-    df = df.append(dfNew)
+    df = pd.read_pickle('C:\Projects\DataScience\Crypto\\ltc.pickle')
+    print('read pickle:', df)
+    print('dfindex =',df.index[-1])
+    print('newtimestamp', newTimeStamp)
+    if (df.index[-1] != newTimeStamp):
+        print('new value!')
+        df = df.append(dfNew)
+    else:
+        print('value not changed since last call')
 except Exception as e:
     print('woops, an error occurred',e)
     df = dfNew
-
-#print(df)
-df.to_pickle('ltc.pickle')
-
-
-# df = pd.read_json(data)
-# df.set_index('timestamp',inplace=True)
-# print(df.head(1))
+finally:
+    df.to_pickle('ltc.pickle')
 
 
-# df = df.filter(like='gbp',axis=0)
-# print(df.head(1))
-# print(df.index)
+style.use('ggplot')
+
+df.describe()
+#df.plot()
+
+plt.plot(df.index.to_pydatetimes(), df['Price.gbp'])
+date_fmt = '%H:%M:%S'
+formatter = dates.DateFormatter(date_fmt)
+#ax = df['price.gbp'].plot()
+#ax.xaxis.set_major_formatter(formatter)
 
 
+# ax.xaxis.set_major_formatter(ticker.FixedFormatter(ticklabels))
+#df.plot()
 
-
-
-
-
-
-
+plt.xlabel('time')
+plt.ylabel('price')
+plt.show()

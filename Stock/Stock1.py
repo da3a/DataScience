@@ -26,4 +26,4 @@ ax1.plot(df.index,df['Close'])
 ax1.plot(df.index,df['20ma'])
 ax2.bar(df.index,df['Volume'])
 
-plt.show()
+#plt.show()
