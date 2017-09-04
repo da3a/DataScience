@@ -1,3 +1,4 @@
+#https://medium.com/towards-data-science/simple-and-multiple-linear-regression-in-python-c928425168f9
 # https://coinmarketcap-nexuist.rhcloud.com/api/ltc
 import requests
 import json
@@ -11,9 +12,10 @@ from requests.packages.urllib3.exceptions import InsecureRequestWarning
 from pandas.io.json import json_normalize
 from matplotlib import style
 from matplotlib import dates
+from sklearn import linear_model
 
 baseUrl = 'https://coinmarketcap-nexuist.rhcloud.com/api/{}'
-currencySymbol = 'eth'
+currencySymbol = 'ltc'
 pickleFile = 'C:/Projects/DataScience/Crypto/' + currencySymbol + '.pickle'
 
 def getCurrentPrice(currency):
@@ -40,8 +42,7 @@ dfNew.set_index('timestamp',inplace=True)
 #print(dfNew.iloc[0,0])
 #print(dfNew.iloc[0,1])
 newTimeStamp = dfNew.index[0]
-#print('to datetime: ',newTimeStamp)
-#print('to datetime: ',pd.to_datetime([newTimeStamp],unit='s')
+
 try:
     df = pd.read_pickle(pickleFile)
     print(df)
@@ -56,26 +57,33 @@ except Exception as e:
 finally:
     df.to_pickle(pickleFile)
 
-style.use('ggplot')
-df.describe()
+print(df.index)
+
+X = df
+
+y = df['price.gbp']
+print('value of y is: ',y)
+
+lm = linear_model.LinearRegression()
+model = lm.fit(X,y)
+
+lm.score(X,y)
+
+predictions = lm.predict(X)
+print('predictions',predictions[0:5])
 
 df['Date'] = pd.to_datetime(df.index[0], unit='s')
-print(df['Date'])
 
-print(df.head(10))
-#df.plot(x="Date",y="price.gbp")
-df.plot()
+plt.scatter(df.index, df['price.gbp'],color='black')
+plt.plot(df.index, predictions, color='blue', linewidth=3)
 
-#plt.plot(df.index.to_pydatetimes(), df['Price.gbp'])
-date_fmt = '%H:%M:%S'
-formatter = dates.DateFormatter(date_fmt)
-#ax = df['price.gbp'].plot()
-#ax.xaxis.set_major_formatter(formatter)
-
-
-# ax.xaxis.set_major_formatter(ticker.FixedFormatter(ticklabels))
-#df.plot()
-
-plt.xlabel('time')
-plt.ylabel('price')
+plt.xticks(())
+plt.yticks(())
 plt.show()
+
+#print(lm.score(X,y))
+#print(lm.coef_)
+#print(lm.intercept_)
+
+
+
