@@ -13,6 +13,7 @@ from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 from nltk.tokenize import sent_tokenize
 from nltk.corpus import wordnet as wn
+from nltk.stem.porter import PorterStemmer
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.cluster import KMeans
 from nltk.probability import FreqDist
@@ -22,7 +23,7 @@ from heapq import nlargest
 
 baseUrl = 'https://community.sephora.com{}'
 reviewUrl = baseUrl.format('/?pageNum={}&purpose=recent&onlyPhotos=false&trendingTag=&isMyPost=false&userId=-1')
-maxPages = 1
+maxPages = 10
 reviews = []
 filtered_reviews = []
 fileName = 'sephora.pickle'
@@ -39,7 +40,7 @@ def scrapeReviews(pageNo, readThread = False):
         readmoreUrl = soup.find('a',attrs={'class':'read-more'})
         if readmoreUrl and readThread: 
             href = readmoreUrl.get('href')
-            print(baseUrl.format(href))
+            print("calling inner:",baseUrl.format(href))
             innerResponse = requests.get(baseUrl.format(href),verify=False)
             soup = BeautifulSoup(innerResponse.text,'lxml')
             for divInner in soup.findAll('div',attrs={'class': 'lia-message-body-content'}):
@@ -57,7 +58,7 @@ def scrapeReviews(pageNo, readThread = False):
 def getAllReviews(reload = False):
     global reviews
     if reload:
-        scrapeReviews(1,readThread=False)
+        scrapeReviews(1,readThread=True)
     else:
         with open(fileName,'rb') as f:
             reviews = pickle.load(f)
@@ -91,27 +92,49 @@ def extract_nounPhrases(review):
     return nounPhrases
 
 nounPhraseList = []
+nouns = []
+getAllReviews(False)
+print('found these reviews:',len(reviews))
 
-for review in reviews:
+for review in reviews[:10]:
     nps = extract_nounPhrases(review)
     if len(nps) > 0:
         print(nps)
         nounPhraseList.append(nps)
 
 
-nouns = []
-getAllReviews(True)
-print('found these reviews:',len(reviews))
+token_dict = {}
+stemmer = PorterStemmer()
 
 def preProcessReviews():
     print("will remove stopwords etc")
     _stopwords = set(stopwords.words('english') + list(punctuation) + ['\'s'])
-    for review in reviews:
+    for i, review in enumerate(reviews):
+        review = review.lower()
         all_words = word_tokenize(review)
         all_words = [word for word in all_words if word not in _stopwords]
-        review = all_words
+        token_dict[i] = all_words
+
+def stem_tokens(tokens, stemmer):
+    stemmed = []
+    for item in tokens:
+        stemmed.append(stemmer.stem(item))
+    return stemmed
+
+def tokenize(text):
+    tokens = nltk.tokenize(text)
+    stems = stem_tokens(tokens,stemmer)
+    return stems
 
 preProcessReviews()
+
+vectorizer = TfidfVectorizer(tokenizer=tokenize, stop_words='english')
+
+print(token_dict.values())
+sys.exit(0)
+X = vectorizer.fit_transform(token_dict.values())
+
+sys.exit(0)
 
 # for review in reviews:
 #     print(review)
