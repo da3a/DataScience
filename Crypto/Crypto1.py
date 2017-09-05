@@ -13,7 +13,7 @@ from matplotlib import style
 from matplotlib import dates
 
 baseUrl = 'https://coinmarketcap-nexuist.rhcloud.com/api/{}'
-currencySymbol = 'eth'
+currencySymbol = 'ltc'
 pickleFile = 'C:/Projects/DataScience/Crypto/' + currencySymbol + '.pickle'
 
 def getCurrentPrice(currency):

@@ -43,7 +43,7 @@ def summarize(text, numberOfSentences):
             if w in freq:
                 ranking[i] += freq[w]
     
-    sents_idx = nlargest(numberOfSentences, ranking, key=ranking.get)
+
     return [sents[j] for j in sorted(sents_idx)]
 
 articleURL= 'https://www.theguardian.com/technology/2017/aug/20/two-year-olds-should-learn-to-code-says-computing-pioneer'
