@@ -1,10 +1,12 @@
 #links
 #http://www.nltk.org/book/ch07.html
+#http://www.cs.duke.edu/courses/spring14/compsci290/assignments/lab02.html
 
 import requests
 import nltk
 import pickle
 import sys
+import numpy as np
 
 from bs4 import BeautifulSoup
 from string import punctuation
@@ -28,7 +30,7 @@ reviews = []
 filtered_reviews = []
 fileName = 'sephora.pickle'
 nClusters = 3
-_stopwords = set(stopwords.words('english') + list(punctuation) + ['\'s', '\'m', 'n\'t', '...'])
+_stopwords = set(stopwords.words('english') + list(punctuation) + ['\'s', '\'m', 'n\'t', '...','\'ve', '’'])
 
 def scrapeReviews(pageNo, readThread = False):
     url = reviewUrl.format(pageNo)
@@ -88,32 +90,17 @@ def extract_nounPhrases(review):
         cp = nltk.RegexpParser(grammar)
         result = cp.parse(tagged)
         for npstr in parse_np(result):
-            nounPhrases.append(npstr)
-    return nounPhrases
-
-nounPhraseList = []
-nouns = []
-getAllReviews(False)
-print('found these reviews:',len(reviews))
-
-for review in reviews[:10]:
-    nps = extract_nounPhrases(review)
-    if len(nps) > 0:
-        print(nps)
-        nounPhraseList.append(nps)
-
-
-token_dict = {}
-stemmer = PorterStemmer()
+            nounPhrases.append(npstr.replace(' ', '-'))
+    return ' '.join(nounPhrases)
 
 def preProcessReviews():
     print("will remove stopwords etc")
-    _stopwords = set(stopwords.words('english') + list(punctuation) + ['\'s'])
+    _stopwords = set(stopwords.words('english') + list(punctuation) + ['\'s', '@ '])
     for i, review in enumerate(reviews):
         review = review.lower()
         all_words = word_tokenize(review)
         all_words = [word for word in all_words if word not in _stopwords]
-        token_dict[i] = all_words
+        token_dict[i] = ' '.join(all_words)
 
 def stem_tokens(tokens, stemmer):
     stemmed = []
@@ -122,84 +109,126 @@ def stem_tokens(tokens, stemmer):
     return stemmed
 
 def tokenize(text):
-    tokens = nltk.tokenize(text)
+    _stopwords = set(stopwords.words('english') + list(punctuation) + ['\'s', '@ '])   
+    tokens = nltk.word_tokenize(text)
+    tokens = [word for word in tokens if word not in _stopwords]
     stems = stem_tokens(tokens,stemmer)
     return stems
 
+def getClusterText(labelledClusters):
+    text = {}
+    for i, cluster in enumerate(labelledClusters):
+        oneDocument = reviews[i]
+        if cluster not in text.keys():
+            text[cluster] = oneDocument
+        else:
+            text[cluster] += oneDocument
+    return text
+
+def getFreqDistFromClusteredText(clusteredText):
+    counts = {}
+    for cluster in range(nClusters):
+        word_sent = word_tokenize(clusteredText[cluster].lower())
+        word_sent = [word for word in word_sent if word not in _stopwords]
+        freq = FreqDist(word_sent)
+        counts[cluster]=freq
+    return counts
+
+def getTopWordsFromClusteredText(clusteredText, nWords):
+    keywords = {}
+    for cluster in range(nClusters):
+        word_sent = word_tokenize(clusteredText[cluster].lower())
+        word_sent = [word for word in word_sent if word not in _stopwords]
+        freq = FreqDist(word_sent)
+        keywords[cluster] = nlargest(nWords, freq, key=freq.get)
+    return keywords
+
+
+def filterOnAnySearchTerms(articles, searchTerms):
+    filteredArticles = []
+    for article in articles:
+        if not set(word_tokenize(article)).isdisjoint(searchTerms):
+            filteredArticles.append(article)
+    return filteredArticles
+
+def filterOnAllSearchTerms(articles, searchTerms):
+    filteredArticles = []
+    for article in articles:
+        if set(searchTerms).issubset(set(word_tokenize(article))):
+            filteredArticles.append(article)
+    return filteredArticles
+
+#############################################
+
+nounPhraseList = []
+nouns = []
+getAllReviews(False)
+print('found these reviews:',len(reviews))
+
+for review in filterOnAllSearchTerms(reviews, ['sensitive','oily']):
+    print('article:', review)
+
+sys.exit(0)
+
+for review in reviews:
+    nps = extract_nounPhrases(review)
+    if len(nps) > 0:
+        #print(nps)
+        nounPhraseList.append(nps)
+
+token_dict = {}
+stemmer = PorterStemmer()
+
 preProcessReviews()
 
+#print(list(token_dict.values()))
+
 vectorizer = TfidfVectorizer(tokenizer=tokenize, stop_words='english')
+X =  vectorizer.fit_transform(reviews)
+#X = vectorizer.fit_transform(list(token_dict.values()))
+#X = vectorizer.fit_transform(nounPhraseList)
 
-print(token_dict.values())
-sys.exit(0)
-X = vectorizer.fit_transform(token_dict.values())
-
-sys.exit(0)
-
-# for review in reviews:
-#     print(review)
-
-#print(nouns)
-
-# nounFreq = FreqDist(nounPhraseList)
-
-# from heapq import nlargest
-# print(nlargest(50, nounFreq, key=nounFreq.get))
-
-#nltk.help.upenn_tagset()
-
-#filter down reviews
-
-# for review in reviews:
-#     if set(word_tokenize(review)).intersection(['protect']):
-#         filtered_reviews.append(review)
-# print(len(filtered_reviews))
-# for review in filtered_reviews:
-#     print(review)
-# sys.exit(0)
-
-vectorizer = TfidfVectorizer(max_df=0.5, min_df=2, stop_words='english')
-X = vectorizer.fit_transform(reviews)
-
+print(X)
 km = KMeans(n_clusters=nClusters,init='k-means++',max_iter=100,n_init=1, verbose=True)
 km.fit(X)
+print(np.unique(km.labels_,return_counts=True))# indicates cluster numbers and counts in eacxh cluster
 
-print(km.labels_)
+# sys.exit(0)
 
-text = {}
-for i, cluster in enumerate(km.labels_):
-    oneDocument = reviews[i]
-    if cluster == 1:
-        print(oneDocument)
-    if cluster not in text.keys():
-        text[cluster] = oneDocument
-    else:
-        text[cluster] += oneDocument
+# vectorizer = TfidfVectorizer(max_df=0.5, min_df=2, stop_words='english')
+# X = vectorizer.fit_transform(reviews)
 
-keywords={}
-counts={}
+# km = KMeans(n_clusters=nClusters,init='k-means++',max_iter=100,n_init=1, verbose=True)
+# km.fit(X)
+# print(np.unique(km.labels_,return_counts=True))
+
+clusteredText = getClusterText(km.labels_)
+
+keywords = getTopWordsFromClusteredText(clusteredText, 10)
+counts = getFreqDistFromClusteredText(clusteredText)
+
+
 for cluster in range(nClusters):
-    word_sent = word_tokenize(text[cluster].lower())
+    word_sent = word_tokenize(clusteredText[cluster].lower())
     word_sent = [word for word in word_sent if word not in _stopwords]
     freq = FreqDist(word_sent)
     keywords[cluster] = nlargest(10, freq, key=freq.get)
     counts[cluster]=freq
 
+# for cluster in range(nClusters):
+#     print(keywords[cluster])
+
+
+unique_keys = {}
 for cluster in range(nClusters):
-    print(keywords[cluster])
+    other_clusters = list(set(range(nClusters))-set([cluster]))
+    keys_other_clusters=set(keywords[other_clusters[0]]).union(set(keywords[other_clusters[1]]))
+    unique=set(keywords[cluster])-keys_other_clusters
+    unique_keys[cluster] = nlargest(10,unique, key=counts[cluster].get)
+
+print(unique_keys)
 
 sys.exit(0)
-
-
-# unique_keys = {}
-# for cluster in range(nClusters):
-#     other_clusters = list(set(range(nClusters))-set([cluster]))
-#     keys_other_clusters=set(keywords[other_clusters[0]]).union(set(keywords[other_clusters[1]]))
-#     unique=set(keywords[cluster])-keys_other_clusters
-#     unique_keys[cluster] = nlargest(10,unique, key=counts[cluster].get)
-
-# print(unique_keys)
-
 
 # print("*"*50)
 # count=0

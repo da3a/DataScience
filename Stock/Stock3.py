@@ -50,8 +50,8 @@ def get_ticker_data(startTime, endTime):
 
 tickers = get_ftse_tickers(reload_tickers=False)
 
-startTime = dt.datetime(2012,1,1)
-endTime = dt.datetime(2017,5,1)
+startTime = dt.datetime(2017,1,1)
+endTime = dt.datetime(2017,8,1)
 
 for ticker in tickers:
     #get_ticker_data(startTime, endTime)
