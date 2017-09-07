@@ -25,19 +25,27 @@ from heapq import nlargest
 
 baseUrl = 'https://community.sephora.com{}'
 reviewUrl = baseUrl.format('/?pageNum={}&purpose=recent&onlyPhotos=false&trendingTag=&isMyPost=false&userId=-1')
-maxPages = 10
+
+baseSkincareTalkUrl = 'http://www.skincaretalk.com/{}'
+skincareReviewUrl = baseSkincareTalkUrl.format('forumdisplay.php/5-Basic-Skin-Care')
+
+maxPages = 1
 reviews = []
 filtered_reviews = []
 fileName = 'sephora.pickle'
+skincareFileName = 'skincare.pickle'
 nClusters = 3
 _stopwords = set(stopwords.words('english') + list(punctuation) + ['\'s', '\'m', 'n\'t', '...','\'ve', '’'])
 
-def scrapeReviews(pageNo, readThread = False):
+token_dict = {}
+stemmer = PorterStemmer()
+
+def scrapeReviewsSephora(pageNo, readThread = False):
     url = reviewUrl.format(pageNo)
     print("calling:",url)
     requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
     response = requests.get(url,verify=False)
-    soup = BeautifulSoup(response.text,'lxml')
+    soup = BeautifulSoup(response.text,'lxml')   
     for div in soup.findAll('div',attrs={'class': 'message-body'}):
         readmoreUrl = soup.find('a',attrs={'class':'read-more'})
         if readmoreUrl and readThread: 
@@ -49,20 +57,65 @@ def scrapeReviews(pageNo, readThread = False):
                 reviews.append(divInner.text)
         else:
             reviews.append(div.text)
-    else:
-        print('Nothing found....')
     if pageNo < maxPages:
             scrapeReviews(pageNo = pageNo + 1)
     with open(fileName,'wb') as f:
+        pickle.dump(reviews,f)
+
+def scrapeReviewsV1(pageNo, readThread = False):
+    url = reviewUrl.format(pageNo)
+    print("calling:",url)
+    requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
+    response = requests.get(url,verify=False)
+    post = ''
+    soup = BeautifulSoup(response.text,'lxml')   
+    for div in soup.findAll('div',attrs={'class': 'message-body'}):
+        readmoreUrl = soup.find('a',attrs={'class':'read-more'})
+        if readmoreUrl and readThread: 
+            href = readmoreUrl.get('href')
+            print("calling inner:",baseUrl.format(href))
+            innerResponse = requests.get(baseUrl.format(href),verify=False)
+            soup = BeautifulSoup(innerResponse.text,'lxml')
+            for divInner in soup.findAll('div',attrs={'class': 'lia-message-body-content'}):
+                post += divInner.text
+        else:
+            post += div.text
+        reviews.append(post)
+    if pageNo < maxPages:
+            scrapeReviewsV1(pageNo = pageNo + 1)
+    with open(fileName,'wb') as f:
+        pickle.dump(reviews,f)
+
+def scrapeReviewsSkinCareTalk(pageNo, readThread = False):
+    url = reviewUrl.format(pageNo)
+    print("calling:",skincareReviewUrl)
+    requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
+    response = requests.get(url,verify=False)
+    soup = BeautifulSoup(response.text,'lxml')
+    for div in soup.findAll('div',attrs={'class':'threadlist'}):
+        print('found threadlist')
+        readmoreUrl = soup.find('a',attrs={'class':'title'})
+        if readmoreUrl and readThread: 
+            href = readmoreUrl.get('href')
+            print("calling inner:",baseSkincareTalkUrl.format(href))
+            innerResponse = requests.get(baseUrl.format(href),verify=False)
+            soup = BeautifulSoup(innerResponse.text,'lxml')
+            for divInner in soup.findAll('div',attrs={'class': 'content'}):
+                reviews.append(divInner.text)
+        else:
+            reviews.append(div.text)
+    if pageNo < maxPages:
+            scrapeReviewsSkinCareTalk(pageNo = pageNo + 1)
+    with open(skincareFileName,'wb') as f:
         pickle.dump(reviews,f)
 
 
 def getAllReviews(reload = False):
     global reviews
     if reload:
-        scrapeReviews(1,readThread=True)
+        scrapeReviewsSkinCareTalk(1,readThread=True)
     else:
-        with open(fileName,'rb') as f:
+        with open(skincareFileName,'rb') as f:
             reviews = pickle.load(f)
 
 def extract_Tokens(tokens, review):
@@ -109,11 +162,26 @@ def stem_tokens(tokens, stemmer):
     return stemmed
 
 def tokenize(text):
-    _stopwords = set(stopwords.words('english') + list(punctuation) + ['\'s', '@ '])   
+    _stopwords = set(stopwords.words('english') + list(punctuation) + ['\'s', '@ ','sephora'])   
     tokens = nltk.word_tokenize(text)
     tokens = [word for word in tokens if word not in _stopwords]
     stems = stem_tokens(tokens,stemmer)
     return stems
+    #return tokens
+
+def tokenize_NounPhrases(text):
+    grammar = 'NP: {<JJ><NN>}' # 'NP: {<DT>?<JJ>*<NN>}'
+    nounPhrases = []
+    sentences = sent_tokenize(text)
+    for sent in sentences:
+        words = nltk.word_tokenize(sent)
+        tagged = nltk.pos_tag(words)
+        cp = nltk.RegexpParser(grammar)
+        result = cp.parse(tagged)
+        for npstr in parse_np(result):
+            nounPhrases.append(npstr.replace(' ', '-'))
+    print('nounPhrases', "".join(nounPhrases))
+    return nounPhrases 
 
 def getClusterText(labelledClusters):
     text = {}
@@ -162,27 +230,30 @@ def filterOnAllSearchTerms(articles, searchTerms):
 
 nounPhraseList = []
 nouns = []
-getAllReviews(False)
-print('found these reviews:',len(reviews))
-
-for review in filterOnAllSearchTerms(reviews, ['sensitive','oily']):
-    print('article:', review)
-
-sys.exit(0)
+getAllReviews(True)
 
 for review in reviews:
-    nps = extract_nounPhrases(review)
-    if len(nps) > 0:
-        #print(nps)
-        nounPhraseList.append(nps)
+    print(review)
+print('found these reviews:',len(reviews))
 
-token_dict = {}
-stemmer = PorterStemmer()
+#sys.exit(0)
+# for review in filterOnAllSearchTerms(reviews, ['sensitive','oily']):
+#     print('article:', review)
 
-preProcessReviews()
+# sys.exit(0)
+
+# for review in reviews:
+#     nps = extract_nounPhrases(review)
+#     if len(nps) > 0:
+#         #print(nps)
+#         nounPhraseList.append(nps)
+
+# preProcessReviews()
 
 #print(list(token_dict.values()))
 
+
+#vectorizer = TfidfVectorizer(max_df=0.5, min_df=2, stop_words='english')
 vectorizer = TfidfVectorizer(tokenizer=tokenize, stop_words='english')
 X =  vectorizer.fit_transform(reviews)
 #X = vectorizer.fit_transform(list(token_dict.values()))
@@ -191,9 +262,14 @@ X =  vectorizer.fit_transform(reviews)
 print(X)
 km = KMeans(n_clusters=nClusters,init='k-means++',max_iter=100,n_init=1, verbose=True)
 km.fit(X)
-print(np.unique(km.labels_,return_counts=True))# indicates cluster numbers and counts in eacxh cluster
+print(np.unique(km.labels_,return_counts=True))# indicates cluster numbers and counts in each cluster
 
-# sys.exit(0)
+# text_file = open("skin.txt", "w", encoding="utf8")
+# for i, cluster in enumerate(km.labels_):
+#     if cluster==2:
+#         text_file.write("REVIEW:" + reviews[i])
+#         print("REVIEW:",reviews[i])
+# text_file.close()
 
 # vectorizer = TfidfVectorizer(max_df=0.5, min_df=2, stop_words='english')
 # X = vectorizer.fit_transform(reviews)
@@ -226,7 +302,10 @@ for cluster in range(nClusters):
     unique=set(keywords[cluster])-keys_other_clusters
     unique_keys[cluster] = nlargest(10,unique, key=counts[cluster].get)
 
-print(unique_keys)
+print("printing unique keys: ", unique_keys)
+
+# for i, (k,v) in unique_keys:
+#     print(i,k,v)
 
 sys.exit(0)
 
