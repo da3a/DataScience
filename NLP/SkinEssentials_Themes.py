@@ -27,7 +27,8 @@ baseUrl = 'https://community.sephora.com{}'
 reviewUrl = baseUrl.format('/?pageNum={}&purpose=recent&onlyPhotos=false&trendingTag=&isMyPost=false&userId=-1')
 
 baseSkincareTalkUrl = 'http://www.skincaretalk.com/{}'
-skincareReviewUrl = baseSkincareTalkUrl.format('forumdisplay.php/5-Basic-Skin-Care')
+skincareReviewUrl = baseSkincareTalkUrl.format('forumdisplay.php/5-Basic-Skin-Care/Page{}')
+
 
 maxPages = 1
 reviews = []
@@ -87,23 +88,23 @@ def scrapeReviewsV1(pageNo, readThread = False):
         pickle.dump(reviews,f)
 
 def scrapeReviewsSkinCareTalk(pageNo, readThread = False):
-    url = reviewUrl.format(pageNo)
-    print("calling:",skincareReviewUrl)
+    url = skincareReviewUrl.format(pageNo)
+    print("calling:",url)
     requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
     response = requests.get(url,verify=False)
+    with open('dump.txt','w') as f:
+        f.write(response.text)
     soup = BeautifulSoup(response.text,'lxml')
-    for div in soup.findAll('div',attrs={'class':'threadlist'}):
-        print('found threadlist')
-        readmoreUrl = soup.find('a',attrs={'class':'title'})
-        if readmoreUrl and readThread: 
-            href = readmoreUrl.get('href')
+    for link in soup.findAll('a',attrs={'class':'title'}):     
+        print('found title')
+        href = link.get('href')
+        if href and readThread:
+            print(link.text) 
             print("calling inner:",baseSkincareTalkUrl.format(href))
-            innerResponse = requests.get(baseUrl.format(href),verify=False)
+            innerResponse = requests.get(baseSkincareTalkUrl.format(href),verify=False)
             soup = BeautifulSoup(innerResponse.text,'lxml')
             for divInner in soup.findAll('div',attrs={'class': 'content'}):
                 reviews.append(divInner.text)
-        else:
-            reviews.append(div.text)
     if pageNo < maxPages:
             scrapeReviewsSkinCareTalk(pageNo = pageNo + 1)
     with open(skincareFileName,'wb') as f:
@@ -232,9 +233,13 @@ nounPhraseList = []
 nouns = []
 getAllReviews(True)
 
+
+
 for review in reviews:
     print(review)
 print('found these reviews:',len(reviews))
+
+sys.exit(0)
 
 #sys.exit(0)
 # for review in filterOnAllSearchTerms(reviews, ['sensitive','oily']):
