@@ -18,7 +18,7 @@ MARKETDATA = '^NDX.csv'
 def scrape_tickers(pageNo):
     print("scrape_tickers")
     requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
-    response = requests.get('http://www.nasdaq.com/screening/companies-by-industry.aspx?exchange=NASDAQ&page={}'.format(pageNo), headers=headers, verify=False)
+    response = requests.get('http://www.nasdaq.com/screening/companies-by-industry.aspx?exchange=NASDAQ&pagesize=200&page={}'.format(pageNo), headers=headers, verify=False)
     soup = bs.BeautifulSoup(response.text,'lxml')
     # with open('debug.txt', 'a', encoding='utf-8') as the_file:
     #     the_file.write(response.text)
@@ -35,7 +35,7 @@ def save_tickers():
     print("save_tickers")
     tickers = []
     cnt = 0
-    pageTotal = 32
+    pageTotal = 16
     while cnt < pageTotal:
         cnt = cnt+1
         pagedTickers = scrape_tickers(cnt)
@@ -92,9 +92,9 @@ startTime = dt.datetime(2017,4,1)
 endTime = dt.datetime(2017,10,1)
 tickers = get_tickers(reload_tickers=False)
 
-# for ticker in tickers:
-#     print('getting ticker data for:{}'.format(ticker))
-#     get_ticker_data(ticker, startTime, endTime)
+for ticker in tickers:
+    print('getting ticker data for:{}'.format(ticker))
+    get_ticker_data(ticker, startTime, endTime)
 
 # sys.exit(0)
 
@@ -138,20 +138,19 @@ def plot_figure(tickers):
             halfyear_model.fit(year_xData,year_yData)
             month_model.fit(month_xData,month_yData)
             print('ticker:{} slope is{}'.format(ticker,year_model.coef_))
-            if year_model.coef_ > 1:
-                ax = plt.subplot(5,5, ctr)
-                ax.set_title(ticker + " " + str(year_model.coef_))
-                plt.scatter(month_xData,month_yData, color='black')   
-                plt.plot(year_xData,year_model.predict(year_xData),color='blue',linewidth=1)
-                plt.plot(halfyear_xData,halfyear_model.predict(halfyear_xData),color='green',linewidth=1)
-                plt.plot(month_xData,month_model.predict(month_xData),color='red',linewidth=1)
-                plt.axis([min(modeldata['Returns_x']),max(modeldata['Returns_x']),min(modeldata['Returns_y']),max(modeldata['Returns_y'])])
-                ctr = ctr+1
+            ax = plt.subplot(5,5, ctr)
+            ax.set_title(ticker + " " + str(year_model.coef_))
+            plt.scatter(month_xData,month_yData, color='black')   
+            plt.plot(year_xData,year_model.predict(year_xData),color='blue',linewidth=1)
+            plt.plot(halfyear_xData,halfyear_model.predict(halfyear_xData),color='green',linewidth=1)
+            plt.plot(month_xData,month_model.predict(month_xData),color='red',linewidth=1)
+            plt.axis([min(modeldata['Returns_x']),max(modeldata['Returns_x']),min(modeldata['Returns_y']),max(modeldata['Returns_y'])])
+            ctr = ctr+1
 
         plt.show()
 
 
-for i in range(1, len(tickers)-26, 26):
+for i in range(100, len(tickers)-26, 26):
     plot_figure(tickers[i:i+26])
 
 
