@@ -10,14 +10,17 @@ import os
 import matplotlib.pyplot as plt
 from sklearn import datasets, linear_model
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
+from operator import itemgetter
+from heapq import nlargest
 
 headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.10; rv:39.0) Gecko/20100101 Firefox/39.0'}
 MARKET = "nasdaq"
 MARKETDATA = '^NDX.csv'
 
-def scrape_tickers(pageNo):
-    print("scrape_tickers")
+def scrape_ticker_symbols(pageNo):
+    print("scrape_ticker_symbols")
     requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
+    #response = requests.get('http://www.nasdaq.com/screening/companies-by-industry.aspx?exchange=NASDAQ&pagesize50&page={}'.format(pageNo), headers=headers, verify=False)
     response = requests.get('http://www.nasdaq.com/screening/companies-by-industry.aspx?exchange=NASDAQ&pagesize=200&page={}'.format(pageNo), headers=headers, verify=False)
     soup = bs.BeautifulSoup(response.text,'lxml')
     # with open('debug.txt', 'a', encoding='utf-8') as the_file:
@@ -31,9 +34,8 @@ def scrape_tickers(pageNo):
             tickers.append(ticker)
     return tickers
 
-def save_tickers():
-    print("save_tickers")
-    tickers = []
+def save_ticker_symbols():
+    print('save_tickers_symbols')
     cnt = 0
     pageTotal = 16
     while cnt < pageTotal:
@@ -45,8 +47,8 @@ def save_tickers():
         pickle.dump(tickers,f)
     return tickers
 
-def get_tickers(reload_tickers=False):
-    print("get_tickers")
+def get_ticker_symbols(reload_tickers=False):
+    print("get_ticker_symbols")
     if reload_tickers:
         tickers = save_tickers()
     else:
@@ -54,27 +56,13 @@ def get_tickers(reload_tickers=False):
             tickers = pickle.load(f)
     return tickers
 
-def get_ticker_data_from_web(ticker, startTime, endTime):
+def get_ticker_historical_data_from_web(ticker, startTime, endTime):
     try:
         df = web.DataReader(ticker,'google', startTime, endTime)
         df.to_csv('{}/{}.csv'.format(MARKET,ticker))
         return df
     except:
         return pd.DataFrame({'empty' : []})
-
-def get_ticker_data(ticker,startTime,endTime):
-    print('get_ticker_data {} {} {}'.format(ticker, startTime, endTime))
-    if not os.path.exists(MARKET):
-        os.makedirs(MARKET)
-    try:
-        return readFile('{}/{}.csv'.format(MARKET,ticker))
-    except:
-        print('ticker file not found will reload')
-        df = get_ticker_data_from_web(ticker, startTime, endTime)
-        if not df.empty:
-            return readFile('{}/{}.csv'.format(MARKET,ticker))
-        else:
-            return df
 
 def readFile(file_name):
     print('readFile {}'.format(file_name))
@@ -84,39 +72,48 @@ def readFile(file_name):
     data.index = data['Date']
     return data
 
-# tickers = get_tickers(reload_tickers=True)
-# print(tickers)
-# sys.exit(0)
-
-startTime = dt.datetime(2017,4,1)
-endTime = dt.datetime(2017,10,1)
-tickers = get_tickers(reload_tickers=False)
-
-for ticker in tickers:
-    print('getting ticker data for:{}'.format(ticker))
-    get_ticker_data(ticker, startTime, endTime)
-
-# sys.exit(0)
+def get_ticker_data(ticker,startTime,endTime):
+    print('get_ticker_data {} {} {}'.format(ticker, startTime, endTime))
+    if not os.path.exists(MARKET):
+        os.makedirs(MARKET)
+    try:
+        return readFile('{}/{}.csv'.format(MARKET,ticker))
+    except:
+        return pd.DataFrame({'empty' : []})
 
 
-# for ticker in tickers:
-#     print('getting ticker data for:{}'.format(ticker))
-#     get_ticker_data(ticker, startTime, endTime)
+def load_market_data():
+    marketdata = pd.read_csv(MARKETDATA,sep=',',usecols=[0,5],names=['Date','Price'],header=1)
+    marketreturns = np.array(marketdata['Price'][1:],np.float)/np.array(marketdata['Price'][:-1],np.float)-1
+    marketdata['Returns'] = np.append(marketreturns,np.nan)
+    marketdata.index = marketdata['Date']
+    return marketdata
 
-#sys.exit(0)
+def get_coefficients(tickers, top):
+    ranking = {}
+    #ranking[ticker] = coeff
+    for ticker in tickers:
+        df = get_ticker_data(ticker, startTime, endTime)
+        if df.empty:
+            continue
+        if len(df) < 2:
+            continue
+        modeldata = pd.merge(marketdata,df,how='inner',on=['Date'])
+        year_xData = modeldata['Returns_x'][0:-1].values.reshape(-1,1)
+        year_yData = modeldata['Returns_y'][0:-1]
+        year_model = linear_model.LinearRegression()
+        year_model.fit(year_xData,year_yData)
+        print('coefficient for {} is {}'.format(ticker,year_model.coef_))
+        ranking[ticker] = year_model.coef_
 
-marketdata = pd.read_csv(MARKETDATA,sep=',',usecols=[0,5],names=['Date','Price'],header=1)
-marketreturns = np.array(marketdata['Price'][1:],np.float)/np.array(marketdata['Price'][:-1],np.float)-1
-marketdata['Returns'] = np.append(marketreturns,np.nan)
-marketdata.index = marketdata['Date']
+    return sorted(ranking.items(), key=itemgetter(1), reverse=True)[:top]
 
-
-def plot_figure(tickers):
+def plot_figures(tickers):
         fig, ax = plt.subplots(nrows=5, ncols=5)
         fig.tight_layout()
         ctr = 1
         for ticker in tickers:
-            print('ticker:{}'.format(ticker))
+            print('plot_figure:{}'.format(ticker))
             df = get_ticker_data(ticker, startTime, endTime)
             if df.empty:
                 continue
@@ -149,6 +146,38 @@ def plot_figure(tickers):
 
         plt.show()
 
+marketdata = load_market_data()
+
+print('printing out the tickers')
+tickers = get_ticker_symbols(reload_tickers=False)
+print(tickers)
+#sys.exit(0)
+
+startTime = dt.datetime(2017,4,1)
+endTime = dt.datetime(2017,10,1)
+
+#tickers = get_tickers(reload_tickers=False)
+
+chosen = get_coefficients(tickers,25)
+
+chosen_tickers = dict(chosen).keys()
+#tickers = (x[0] for x in get_coefficients(tickers[:100],10))
+
+plot_figures(chosen_tickers)
+sys.exit(0)
+
+for ticker in tickers[100:151]:
+    print('getting ticker data for:{}'.format(ticker))
+    get_ticker_data(ticker, startTime, endTime)
+
+# sys.exit(0)
+
+
+# for ticker in tickers:
+#     print('getting ticker data for:{}'.format(ticker))
+#     get_ticker_data(ticker, startTime, endTime)
+
+#sys.exit(0)
 
 for i in range(100, len(tickers)-26, 26):
     plot_figure(tickers[i:i+26])

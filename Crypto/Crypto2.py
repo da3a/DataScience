@@ -57,13 +57,19 @@ except Exception as e:
 finally:
     df.to_pickle(pickleFile)
 
-print(df.index)
+print("df.index is", df.index)
 
 X = df
 
 y = df['price.gbp']
 print('value of y is: ',y)
+df['Date'] = pd.to_datetime(df.index[0], unit='s')
 
+newdf = pd.DataFrame(df['price.gbp'], index=df['Date'])
+
+newdf.plot()
+plt.show()
+sys.exit(0)
 lm = linear_model.LinearRegression()
 model = lm.fit(X,y)
 
