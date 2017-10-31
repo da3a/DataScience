@@ -40,7 +40,7 @@ def save_ticker_symbols():
     pageTotal = 16
     while cnt < pageTotal:
         cnt = cnt+1
-        pagedTickers = scrape_tickers(cnt)
+        pagedTickers = scrape_ticker_symbols(cnt)
         tickers.extend(pagedTickers)
     
     with open('{}.pickle'.format(MARKET),'wb') as f:
@@ -50,7 +50,7 @@ def save_ticker_symbols():
 def get_ticker_symbols(reload_tickers=False):
     print("get_ticker_symbols")
     if reload_tickers:
-        tickers = save_tickers()
+        tickers = save_ticker_symbols()
     else:
         with open('{}.pickle'.format(MARKET),'rb') as f:
             tickers = pickle.load(f)
@@ -99,6 +99,8 @@ def get_coefficients(tickers, top):
         if len(df) < 2:
             continue
         modeldata = pd.merge(marketdata,df,how='inner',on=['Date'])
+        # if len(modeldata) == 0:
+        #     continue
         year_xData = modeldata['Returns_x'][0:-1].values.reshape(-1,1)
         year_yData = modeldata['Returns_y'][0:-1]
         year_model = linear_model.LinearRegression()
@@ -150,13 +152,15 @@ marketdata = load_market_data()
 
 print('printing out the tickers')
 tickers = get_ticker_symbols(reload_tickers=False)
-print(tickers)
+#print(tickers)
 #sys.exit(0)
 
 startTime = dt.datetime(2017,4,1)
 endTime = dt.datetime(2017,10,1)
 
-#tickers = get_tickers(reload_tickers=False)
+# for ticker in tickers:
+#     get_ticker_cal_data_from_web(ticker,startTime,endTime)
+
 
 chosen = get_coefficients(tickers,25)
 
