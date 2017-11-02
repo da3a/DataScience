@@ -123,6 +123,10 @@ def plot_figures(tickers):
                 continue
 
             modeldata = pd.merge(marketdata,df,how='inner',on=['Date'])
+
+            if len(modeldata) < 2:
+                continue
+
             print(modeldata)
             year_xData = modeldata['Returns_x'][0:-1].values.reshape(-1,1)
             year_yData = modeldata['Returns_y'][0:-1]
@@ -139,19 +143,21 @@ def plot_figures(tickers):
             print('ticker:{} slope is{}'.format(ticker,year_model.coef_))
             ax = plt.subplot(5,5, ctr)
             ax.set_title(ticker + " " + str(year_model.coef_))
-            plt.scatter(month_xData,month_yData, color='black')   
+            plt.scatter(year_xData,year_yData, color='black')   
             plt.plot(year_xData,year_model.predict(year_xData),color='blue',linewidth=1)
             plt.plot(halfyear_xData,halfyear_model.predict(halfyear_xData),color='green',linewidth=1)
             plt.plot(month_xData,month_model.predict(month_xData),color='red',linewidth=1)
             plt.axis([min(modeldata['Returns_x']),max(modeldata['Returns_x']),min(modeldata['Returns_y']),max(modeldata['Returns_y'])])
             ctr = ctr+1
-
         plt.show()
 
 marketdata = load_market_data()
 
-print('printing out the tickers')
+print('getting the ticker symbols')
 tickers = get_ticker_symbols(reload_tickers=False)
+
+tickers = tickers[:50]
+tickers = ['MSFT']
 #print(tickers)
 #sys.exit(0)
 
@@ -161,8 +167,8 @@ endTime = dt.datetime(2017,10,1)
 # for ticker in tickers:
 #     get_ticker_cal_data_from_web(ticker,startTime,endTime)
 
-
-chosen = get_coefficients(tickers,25)
+print('getting coefficients for {} tickers'.format(len(tickers)))
+chosen = get_coefficients(tickers[:100],25)
 
 chosen_tickers = dict(chosen).keys()
 #tickers = (x[0] for x in get_coefficients(tickers[:100],10))
