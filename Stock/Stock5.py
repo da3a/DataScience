@@ -1,3 +1,4 @@
+#https://github.com/llSourcell/Stock_Market_Prediction/blob/master/Collecting%20NYTimes%20Data.py
 #https://github.com/SlapBot/newsapi
 from newsapi.articles import Articles
 
